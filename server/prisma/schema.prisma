@@ -116,7 +116,7 @@ model AuditLog {
   createdAt     DateTime    @default(now())
   
   user          User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
-  application   LoanApplication? @relation(fields: [entityId], references: [id], onDelete: SetNull)
+  // Removed application relation - entityId is polymorphic (can be User, LoanApplication, or LoanDecision ID)
   
   @@index([actorId])
   @@index([entityType, entityId])
