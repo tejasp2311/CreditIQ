@@ -1,9 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './config/swagger.js';
 import authRoutes from './routes/authRoutes.js';
 import loanRoutes from './routes/loanRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 import { errorHandler } from './utils/errors.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import logger from './utils/logger.js';
@@ -42,10 +45,23 @@ app.get('/health', (req, res) => {
   });
 });
 
+// API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'CreditIQ API Documentation',
+}));
+
+// Swagger JSON endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/reports', reportRoutes);
 
 // 404 handler
 app.use((req, res) => {

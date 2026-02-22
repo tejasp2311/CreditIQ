@@ -1,0 +1,213 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Backend Tests
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: fintech_loans_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./server
+        run: npm ci
+      
+      - name: Generate Prisma Client
+        working-directory: ./server
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fintech_loans_test?schema=public
+      
+      - name: Run Prisma migrations
+        working-directory: ./server
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fintech_loans_test?schema=public
+      
+      - name: Run tests
+        working-directory: ./server
+        run: npm test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/fintech_loans_test?schema=public
+          JWT_SECRET: test-secret
+          NODE_ENV: test
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./server/coverage/lcov.info
+          flags: backend
+
+  # Frontend Tests
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Run tests
+        working-directory: ./frontend
+        run: npm test
+      
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/lcov.info
+          flags: frontend
+
+  # ML Service Tests
+  ml-service-tests:
+    name: ML Service Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: ml-service/requirements.txt
+      
+      - name: Install dependencies
+        working-directory: ./ml-service
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run tests
+        working-directory: ./ml-service
+        run: pytest test_app.py -v --cov=app --cov-report=xml
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./ml-service/coverage.xml
+          flags: ml-service
+
+  # Linting and Code Quality
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Run ESLint on backend
+        working-directory: ./server
+        run: |
+          npm ci
+          npx eslint . --ext .js || echo "ESLint not configured yet"
+      
+      - name: Run ESLint on frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npx eslint . --ext .js,.jsx || echo "ESLint not configured yet"
+
+  # Docker Build
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, ml-service-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+        if: github.event_name == 'push'
+      
+      - name: Build and push Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/creditiq-backend:latest
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/creditiq-backend:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/creditiq-backend:buildcache,mode=max
+      
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/creditiq-frontend:latest
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/creditiq-frontend:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/creditiq-frontend:buildcache,mode=max
+      
+      - name: Build and push ML Service image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./ml-service
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/creditiq-ml-service:latest
+          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/creditiq-ml-service:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/creditiq-ml-service:buildcache,mode=max

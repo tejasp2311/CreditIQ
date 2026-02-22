@@ -37,3 +37,8 @@ export const authorize = (...roles) => {
   };
 };
 
+// Convenience middleware for requiring admin role
+export const requireAdmin = (req, res, next) => {
+  return authorize('ADMIN')(req, res, next);
+};
+

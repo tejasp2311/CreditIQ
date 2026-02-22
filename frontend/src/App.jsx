@@ -1,12 +1,14 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './components/Toast';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import LoanApplication from './pages/LoanApplication';
 import ApplicationDetail from './pages/ApplicationDetail';
 import AdminDashboard from './pages/AdminDashboard';
+import Profile from './pages/Profile';
 import Layout from './components/Layout';
 
 const PrivateRoute = ({ children }) => {
@@ -40,8 +42,9 @@ const AdminRoute = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
+      <ToastProvider>
+        <Router>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route
@@ -84,9 +87,20 @@ function App() {
               </AdminRoute>
             }
           />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
           <Route path="/" element={<Navigate to="/dashboard" />} />
         </Routes>
       </Router>
+      </ToastProvider>
     </AuthProvider>
   );
 }
