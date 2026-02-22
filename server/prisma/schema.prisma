@@ -47,77 +47,77 @@ enum AuditAction {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  password      String
-  firstName     String
-  lastName      String
-  role          UserRole  @default(USER)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  applications  LoanApplication[]
-  auditLogs     AuditLog[]
-  
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications LoanApplication[]
+  auditLogs    AuditLog[]
+
   @@map("users")
 }
 
 model LoanApplication {
-  id                String            @id @default(uuid())
-  userId            String
-  status            ApplicationStatus @default(DRAFT)
-  
+  id     String            @id @default(uuid())
+  userId String
+  status ApplicationStatus @default(DRAFT)
+
   // Application fields
-  income            Float
-  loanAmount        Float
-  tenure            Int
-  employmentType    String
-  existingEmis      Float
-  creditScore       Int
-  age               Int
-  dependents        Int
-  
+  income         Float
+  loanAmount     Float
+  tenure         Int
+  employmentType String
+  existingEmis   Float
+  creditScore    Int
+  age            Int
+  dependents     Int
+
   // Metadata
-  submittedAt       DateTime?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  decisions         LoanDecision[]
-  auditLogs         AuditLog[]
-  
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decisions LoanDecision[]
+  // Removed auditLogs relation - audit logs are accessed via entityId/entityType (polymorphic)
+
   @@map("loan_applications")
 }
 
 model LoanDecision {
-  id                String    @id @default(uuid())
-  applicationId     String
-  decision          Decision
-  probability       Float?
-  riskBand          RiskBand?
-  policyPassed      Boolean
-  policyReason      String?
-  modelVersion      String?
-  explanations      Json?     // Array of { feature, impact, value }
-  createdAt         DateTime  @default(now())
-  
-  application       LoanApplication   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  
+  id            String    @id @default(uuid())
+  applicationId String
+  decision      Decision
+  probability   Float?
+  riskBand      RiskBand?
+  policyPassed  Boolean
+  policyReason  String?
+  modelVersion  String?
+  explanations  Json? // Array of { feature, impact, value }
+  createdAt     DateTime  @default(now())
+
+  application LoanApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
   @@map("loan_decisions")
 }
 
 model AuditLog {
-  id            String      @id @default(uuid())
-  actorId       String?
-  action        AuditAction
-  entityType    String?     // "User", "LoanApplication", "LoanDecision"
-  entityId      String?
-  metadata      Json?       // Additional context
-  createdAt     DateTime    @default(now())
-  
-  user          User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  id         String      @id @default(uuid())
+  actorId    String?
+  action     AuditAction
+  entityType String? // "User", "LoanApplication", "LoanDecision"
+  entityId   String?
+  metadata   Json? // Additional context
+  createdAt  DateTime    @default(now())
+
+  user User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
   // Removed application relation - entityId is polymorphic (can be User, LoanApplication, or LoanDecision ID)
-  
+
   @@index([actorId])
   @@index([entityType, entityId])
   @@index([createdAt])
@@ -125,12 +125,11 @@ model AuditLog {
 }
 
 model ModelVersion {
-  id            String    @id @default(uuid())
-  version       String    @unique
-  description   String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  
+  id          String   @id @default(uuid())
+  version     String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
   @@map("model_versions")
 }
-
