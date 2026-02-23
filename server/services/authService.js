@@ -115,6 +115,34 @@ export const login = async (email, password) => {
   }
 };
 
+export const getUserById = async (userId) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    return user;
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    logger.error('Failed to fetch user by id', { error: error.message, userId });
+    throw error;
+  }
+};
+
 const generateToken = (user) => {
   return jwt.sign(
     {

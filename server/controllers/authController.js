@@ -1,6 +1,5 @@
-import { register, login } from '../services/authService.js';
+import { register, login, getUserById } from '../services/authService.js';
 import { AppError } from '../utils/errors.js';
-import logger from '../utils/logger.js';
 
 export const registerUser = async (req, res, next) => {
   try {
@@ -42,10 +41,12 @@ export const loginUser = async (req, res, next) => {
 
 export const getCurrentUser = async (req, res, next) => {
   try {
+    const user = await getUserById(req.user.id);
+
     res.status(200).json({
       success: true,
       data: {
-        user: req.user,
+        user,
       },
     });
   } catch (error) {
