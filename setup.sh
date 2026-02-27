@@ -17,8 +17,21 @@ echo "📦 Setting up backend..."
 cd server
 if [ ! -f ".env" ]; then
     echo "Creating .env file from example..."
-    cp .env.example .env 2>/dev/null || echo "Please create .env file manually"
-    echo "⚠️  Please update .env with your database credentials"
+    if [ -f ".env.example" ]; then
+        cp .env.example .env
+        echo "⚠️  Created .env file from template"
+        echo "📝 Required environment variables:"
+        echo "   • DATABASE_URL=postgresql://user:password@localhost:5432/fintech_loans"
+        echo "   • JWT_SECRET=your-secret-key-minimum-32-characters"
+        echo ""
+        echo "Edit server/.env and set the required values before running the server"
+    else
+        echo "❌ .env.example not found. Please create .env file manually with:"
+        echo "   DATABASE_URL=postgresql://user:password@localhost:5432/fintech_loans"
+        echo "   JWT_SECRET=your-secret-key-minimum-32-characters"
+    fi
+else
+    echo "✅ .env file exists"
 fi
 
 npm install
@@ -71,13 +84,21 @@ cd ..
 
 echo "✨ Setup complete!"
 echo ""
-echo "Next steps:"
-echo "1. Update server/.env with your database credentials"
-echo "2. Start PostgreSQL database"
-echo "3. Run database migrations: cd server && npm run prisma:migrate"
-echo "4. Start backend: cd server && npm start"
-echo "5. Start ML service: cd ml-service && source venv/bin/activate && python app.py"
-echo "6. Start frontend: cd frontend && npm run dev"
+echo "🔒 Environment Setup:"
+echo "   1. Update server/.env with your configuration:"
+echo "      - DATABASE_URL: Your PostgreSQL connection string"
+echo "      - JWT_SECRET: A secure random secret (minimum 32 characters)"
+echo ""
+echo "🚀 Next steps to start the application:"
+echo "   1. Ensure PostgreSQL is running: brew services start postgresql"
+echo "   2. Create database: createdb fintech_loans"
+echo "   3. Run migrations: cd server && npm run prisma:migrate"
+echo "   4. Start ML service: cd ml-service && source venv/bin/activate && python app.py"
+echo "   5. Start backend: cd server && npm start"
+echo "      (This validates all env vars and shows service endpoints)"
+echo "   6. Start frontend: cd frontend && npm run dev"
+echo ""
+echo "✅ Access your application at: http://localhost:5173"
 echo ""
 echo "Happy coding! 🎉"
 

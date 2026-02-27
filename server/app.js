@@ -7,6 +7,7 @@ import auditRoutes from './routes/auditRoutes.js';
 import { errorHandler } from './utils/errors.js';
 import { apiLimiter } from './middleware/rateLimiter.js';
 import logger from './utils/logger.js';
+import { checkMLServiceHealth } from './services/mlService.js';
 
 dotenv.config();
 
@@ -33,13 +34,27 @@ app.use((req, res, next) => {
 // Rate limiting
 app.use('/api', apiLimiter);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-  });
+// Health check endpoint (includes dependency checks)
+app.get('/health', async (req, res) => {
+  try {
+    const mlHealthy = await checkMLServiceHealth();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Server is running',
+      timestamp: new Date().toISOString(),
+      services: {
+        api: 'healthy',
+        ml_service: mlHealthy ? 'healthy' : 'unhealthy',
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Health check failed',
+      error: error.message,
+    });
+  }
 });
 
 // Routes
